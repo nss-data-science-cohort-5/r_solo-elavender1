@@ -1,0 +1,207 @@
+---
+title: "Tidyverse Solo Project Eli"
+output: html_notebook
+---
+
+```{r}
+library(tidyverse)
+```
+Read in CSV
+```{r}
+districts <- read_csv('../data/districts.csv')
+```
+1) The tibble has 146 rows and 27 columns
+
+2) Take the first row off the dataframe
+```{r}
+districts <- districts[-1,]
+print(districts)
+```
+3) Filter for proficiency in alg_1 and eng_1 greater 80
+```{r}
+districts %>% 
+  filter(alg_1 > 80, eng_1 > 80)
+```
+13 districts have a proficiency greater than 80 in eng_1 and alg_1
+
+4) Filter for proficiency in alg_1 and eng_1 less than 50
+```{r}
+districts %>% 
+  filter(alg_1 < 50 | eng_1 < 50) 
+```
+4) 8 districts have a proficiency less than 50% in either alg_1 and eng_1
+
+5) which district has the lowest graduation rate?
+```{r}
+districts %>% 
+    filter(grad > 0) %>% 
+    arrange(grad)
+```
+5) The Tennessee School for the Blind has the lowest graduation rate.
+
+6) Arrange for highest drop out rate
+```{r}
+districts %>% 
+    arrange(desc(dropout))
+```
+6) Achievement School District has the highest dropout rate.
+
+7) Within the Mid Cumberland region, which district has the highest ACT composite
+```{r}
+districts %>% 
+  filter(region == "Mid Cumberland") %>% 
+  arrange(desc(act_composite))
+```
+7) Williamson County has the highest ACT composite
+
+8) Create Histogram showing distribution of graduation rates
+```{r}
+ggplot(districts, aes(x = grad)) +
+  geom_histogram(binwidth = 1)
+```
+8) the distribution is right skewed with a few outliers on the left. 
+
+9) Create a scatterplot comparing alg_1 and alg_2 proficiency
+
+```{r}
+ggplot(districts, aes(x = alg_1, y = alg_2, color = region)) +
+  geom_point()
+```
+9) There appears to be a positive linear correlation between alg_1 proficiency and algebra 2 proficiency
+
+9) facet by region
+```{r}
+ggplot(districts, aes(x = alg_1, y = alg_2, color = region)) +
+  geom_point() +
+  facet_wrap(~ region)
+```
+9) interestingly, the positive correlation between alg_1 and alg_2 is not consistent across region with the southeast and Upper Cumberland showing less correlation than the other regions.
+
+10) Create a bar chart showing enrollment by region
+```{r}
+ggplot(districts, aes(x = region, y = enrollment)) +
+  geom_col() 
+```
+10) Mid Cumberland has the highest enrollment while the Northwest has the smallest
+
+11) How many districts have missing enrollment (sum of is.na function)
+```{r}
+districts %>% 
+  summarize(sum(is.na(enrollment)))
+  
+```
+There are 4 districts with missing enrollment data. 
+
+12) Mean graduation rate across all districts
+```{r}
+districts %>% 
+  drop_na(grad) %>% 
+  summarize(mean(grad))
+```
+12) After dropping na values, the mean graduation rate is 90%.  The problem with this method is that some districts have much larger numbers of students and if they have a low graduation rate, the mean would be skewed artificially higher.
+
+13) weighted average of graduation rate
+```{r}
+districts %>% 
+  select(system_name, enrollment, grad) %>% 
+  drop_na(enrollment) %>% 
+  drop_na(grad) %>% 
+  summarize(mean((grad * enrollment) / sum(enrollment)))
+```
+13) the weighted average of the graduation rate is 87%. 
+
+14) Boxplot of enrollment rates per region
+```{r}
+ggplot(districts, aes(x = region, y = enrollment, color = region)) + 
+  geom_boxplot()
+```
+14) the interquartile range is narrow for every region except the Mid Cumberland which displays a broad interquartile range in comparison to the other regions.  Southwest/Memphis also has an exceptional outlier in comparison to the other regions.  
+
+15) Boxplot of graduation rates per region
+```{r}
+ggplot(districts, aes(x = region, y = grad, color = region)) +
+  geom_boxplot()
+```
+15) Mid Cumberland has a district with an exceptionally low graduation rate (less than 25%).  Southwest/Memphis has the largest interquartile range and a district with the second lowest graduation rate.  
+
+16) Weighted average by region
+```{r}
+districts %>% 
+  select(system_name, region, enrollment, grad) %>% 
+  group_by(region) %>%
+  drop_na(enrollment) %>% 
+  drop_na(grad) %>% 
+  mutate(weighted_avg_grad_region = mean(sum(enrollment * grad) / sum(enrollment))) %>% 
+  arrange(region)
+  
+  
+```
+16) there appears to be a discrepancy with the mean of the Southwest/Memphis region,  It has a weighted average graduation rate of only 79%.  The large interquartile range of the box plot unadjusted for enrollment masks this low rate.  Looking closer, in general, districts with higher graduation rates tend to have lower enrollment.  Weighting by enrollment adjusts for this discrepancy and its clear the mean isn't always close to the median displayed on the box plot.
+
+17) 
+```{r}
+districts$alg2_alg1_diff <- districts$alg_2 - districts$alg_1
+districts %>%
+  drop_na(alg2_alg1_diff) %>% 
+  arrange(alg2_alg1_diff)
+ggplot(districts, aes(x = alg2_alg1_diff)) +
+  geom_histogram(bins = 40)
+
+```
+17) Pickett County has a -52.6 difference between algebra 2 and algebra 1 scores.  
+
+```{r}
+districts %>%
+  filter(alg2_alg1_diff > 0)
+18 / 117
+```
+17) only 15% of districts report better algebra 2 scores than algebra 1.  (is there a way to count rows after a filter?)
+
+17) Is the same trend true for English
+```{r}
+districts$eng3_eng_2_diff <- districts$eng_3 - districts$eng_2
+districts %>%
+  drop_na(eng3_eng_2_diff) %>% 
+  arrange(eng3_eng_2_diff)
+ggplot(districts, aes(x = eng3_eng_2_diff)) +
+  geom_histogram(bins = 40)
+```
+```{r}
+districts %>%
+  filter(eng3_eng_2_diff > 0)
+```
+17) Yes, the same trend is observed for English.  In fact, the trend is stronger with only one district reporting higher English 3 scores than English 2. 
+
+18) Find the district with the largest number of missing values
+```{r}
+most_na <- rowSums(is.na(districts))
+most_na
+```
+18) If I did this correctly, it appears the West Tennessee School for the Deaf had the highest number of Na's at 17.  It corresponds to row 141, and based on the massive vector spat out by my handy yet somewhat inelegant most_na variable, I'm going with that answer.  
+
+19) find correlation of graduation rate and all other variables
+```{r}
+no_na <- na.omit(districts)
+other_variables <- c(no_na$alg_1, no_na$alg_2, no_na$bio, no_na$chem, no_na$eng_1, no_na$eng_2, no_na$eng_3, no_na$math, no_na$science, no_na$enrollment, no_na$black, no_na$hispanic, no_na$native, no_na$el, no_na$swd, no_na$ed, no_na$expenditures, no_na$act_composite, no_na$chronic_abs, no_na$suspended, no_na$expelled, no_na$grad, no_na$dropout)
+
+cor(no_na$grad, other_variables)
+```
+20) scatterplot of grad v suspended
+```{r}
+ggplot(districts, aes(x = grad, y = suspended)) +
+  geom_point()
+```
+20) There appears to be a negative correlation between graduation rate and suspension.  Districts with lower suspension have higher graduation rates. 
+
+21) Linear regression model with grad as target variable and suspended as predictor variable
+```{r}
+lm(formula = grad ~ suspended, data = districts)
+```
+22) add regression line to graph
+```{r}
+ggplot(districts, aes(x = grad, y = suspended)) +
+  geom_point() +
+  geom_smooth(method = lm)
+  
+```
+22) I feel that this fit could be improved as there seem to be more data points lying outside of the range of the fit line and its standard deviation.  I would interpret this as saying suspension is not a great predictor of gradutation.  
